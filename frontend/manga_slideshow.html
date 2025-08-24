@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manga Wellness Story - Interactive Slideshow</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Arial", sans-serif;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        overflow: hidden;
+      }
+
+      .slideshow-container {
+        position: relative;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .slide {
+        display: none;
+        text-align: center;
+        animation: fadeIn 0.8s ease-in-out;
+      }
+
+      .slide.active {
+        display: block;
+      }
+
+      .manga-panel {
+        max-width: 90vw;
+        max-height: 80vh;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        border: 3px solid #ffd700;
+      }
+
+      .slide-info {
+        margin-top: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px 25px;
+        border-radius: 10px;
+        display: inline-block;
+      }
+
+      .slide-counter {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-size: 18px;
+        font-weight: bold;
+      }
+
+      .controls {
+        position: absolute;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 15px;
+        align-items: center;
+      }
+
+      .btn {
+        background: #ffd700;
+        color: #1e3c72;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+      }
+
+      .btn:hover {
+        background: #ffed4e;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5);
+      }
+
+      .btn:disabled {
+        background: #666;
+        color: #999;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .play-btn {
+        background: #e74c3c;
+        color: white;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+      }
+
+      .play-btn:hover {
+        background: #c0392b;
+      }
+
+      .progress-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 4px;
+        background: #ffd700;
+        transition: width 0.1s linear;
+        border-radius: 2px;
+      }
+
+      .title {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        font-size: 24px;
+        font-weight: bold;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 10px 20px;
+        border-radius: 10px;
+      }
+
+      .loading {
+        text-align: center;
+        font-size: 24px;
+        padding: 50px;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      .error {
+        background: #e74c3c;
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="title">🎬 Manga Wellness Story</div>
+
+    <div id="loading" class="loading">
+      <div>🎨 Loading your personalized manga story...</div>
+      <div style="margin-top: 10px; font-size: 16px">
+        Please wait while we prepare the slideshow
+      </div>
+    </div>
+
+    <div id="slideshow" class="slideshow-container" style="display: none">
+      <div class="slide-counter">
+        <span id="current-slide">1</span> / <span id="total-slides">6</span>
+      </div>
+
+      <!-- Slides will be dynamically loaded here -->
+      <div id="slides-container"></div>
+
+      <div class="controls">
+        <button class="btn" id="prev-btn" onclick="changeSlide(-1)">
+          ← Previous
+        </button>
+        <button class="btn play-btn" id="play-btn" onclick="toggleAudio()">
+          ▶
+        </button>
+        <button class="btn" id="next-btn" onclick="changeSlide(1)">
+          Next →
+        </button>
+      </div>
+
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+
+    <audio id="story-audio" preload="auto">
+      <source id="audio-source" src="" type="audio/mpeg" />
+      Your browser does not support the audio element.
+    </audio>
+
+    <script>
+      // Configuration
+      const STORY_ID = "story_884416"; // Your completed story
+      const BASE_URL = `https://storage.googleapis.com/calmira-backend/stories/${STORY_ID}/`;
+      const PANEL_DURATION = 20; // seconds per panel
+      const TOTAL_PANELS = 6;
+
+      // State
+      let currentSlide = 0;
+      let isPlaying = false;
+      let audio = null;
+      let slideInterval = null;
+
+      // Initialize
+      document.addEventListener("DOMContentLoaded", function () {
+        loadStory();
+      });
+
+      async function loadStory() {
+        try {
+          // Create slides
+          const slidesContainer = document.getElementById("slides-container");
+
+          for (let i = 1; i <= TOTAL_PANELS; i++) {
+            const slide = document.createElement("div");
+            slide.className = "slide";
+            if (i === 1) slide.classList.add("active");
+
+            const panelNum = i.toString().padStart(2, "0");
+            const imageUrl = `${BASE_URL}panel_${panelNum}.png`;
+
+            slide.innerHTML = `
+                        <img src="${imageUrl}" alt="Panel ${i}" class="manga-panel" 
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%23ddd%22/><text x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22>Panel ${i} Loading...</text></svg>'">
+                        <div class="slide-info">
+                            <h3>Panel ${i}</h3>
+                            <p>Personalized manga story for mental wellness</p>
+                        </div>
+                    `;
+
+            slidesContainer.appendChild(slide);
+          }
+
+          // Setup audio
+          audio = document.getElementById("story-audio");
+          const audioSource = document.getElementById("audio-source");
+          audioSource.src = `${BASE_URL}final_audio.mp3`;
+          audio.load();
+
+          // Setup audio event listeners
+          audio.addEventListener("loadeddata", function () {
+            console.log("Audio loaded successfully");
+          });
+
+          audio.addEventListener("timeupdate", updateProgress);
+          audio.addEventListener("ended", function () {
+            stopSlideshow();
+          });
+
+          // Hide loading, show slideshow
+          document.getElementById("loading").style.display = "none";
+          document.getElementById("slideshow").style.display = "flex";
+
+          updateSlideCounter();
+          updateButtons();
+        } catch (error) {
+          console.error("Failed to load story:", error);
+          showError("Failed to load the manga story. Please try again.");
+        }
+      }
+
+      function changeSlide(direction) {
+        const slides = document.querySelectorAll(".slide");
+        slides[currentSlide].classList.remove("active");
+
+        currentSlide += direction;
+
+        if (currentSlide >= TOTAL_PANELS) currentSlide = 0;
+        if (currentSlide < 0) currentSlide = TOTAL_PANELS - 1;
+
+        slides[currentSlide].classList.add("active");
+        updateSlideCounter();
+        updateButtons();
+      }
+
+      function toggleAudio() {
+        if (isPlaying) {
+          stopSlideshow();
+        } else {
+          startSlideshow();
+        }
+      }
+
+      function startSlideshow() {
+        if (!audio) return;
+
+        isPlaying = true;
+        audio.play().catch((error) => {
+          console.error("Audio play failed:", error);
+          showError(
+            "Audio playback failed. Please check your browser permissions."
+          );
+          isPlaying = false;
+          return;
+        });
+
+        document.getElementById("play-btn").innerHTML = "⏸";
+
+        // Auto-advance slides based on timing
+        slideInterval = setInterval(() => {
+          changeSlide(1);
+        }, PANEL_DURATION * 1000);
+      }
+
+      function stopSlideshow() {
+        isPlaying = false;
+        if (audio) audio.pause();
+        if (slideInterval) clearInterval(slideInterval);
+
+        document.getElementById("play-btn").innerHTML = "▶";
+      }
+
+      function updateProgress() {
+        if (!audio || !audio.duration) return;
+
+        const progress = (audio.currentTime / audio.duration) * 100;
+        document.getElementById("progress-bar").style.width = progress + "%";
+      }
+
+      function updateSlideCounter() {
+        document.getElementById("current-slide").textContent = currentSlide + 1;
+        document.getElementById("total-slides").textContent = TOTAL_PANELS;
+      }
+
+      function updateButtons() {
+        const prevBtn = document.getElementById("prev-btn");
+        const nextBtn = document.getElementById("next-btn");
+
+        // Always allow navigation
+        prevBtn.disabled = false;
+        nextBtn.disabled = false;
+      }
+
+      function showError(message) {
+        const slideshow = document.getElementById("slideshow");
+        slideshow.innerHTML = `<div class="error">${message}</div>`;
+        slideshow.style.display = "flex";
+        document.getElementById("loading").style.display = "none";
+      }
+
+      // Keyboard controls
+      document.addEventListener("keydown", function (e) {
+        switch (e.key) {
+          case "ArrowLeft":
+            changeSlide(-1);
+            break;
+          case "ArrowRight":
+            changeSlide(1);
+            break;
+          case " ":
+            e.preventDefault();
+            toggleAudio();
+            break;
+        }
+      });
+    </script>
+  </body>
+</html>
