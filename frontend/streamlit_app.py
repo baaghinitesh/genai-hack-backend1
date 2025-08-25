@@ -125,7 +125,7 @@ def main():
     st.markdown("""
     <div class="main-header">
         <h1>🎌 Manga Mental Wellness - Your Story Ready!</h1>
-        <p>✅ Complete 6-panel manga story with synchronized audio</p>
+        <p>✅ Complete 6-panel manga story with background music and TTS</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -209,7 +209,7 @@ def display_manga_slideshow(story: Dict):
         
         try:
             st.audio(audio_url, format="audio/mp3")
-            st.info("▶️ **Play the audio above and navigate through panels below for the synchronized manga experience!**")
+            st.info("▶️ **Play the audio above and navigate through panels below for the complete manga experience!**")
         except Exception as e:
             st.error(f"❌ Could not load audio: {e}")
             
@@ -392,7 +392,7 @@ def show_story_info():
         ### 🎵 Audio Components Generated
         **Background Music:** Lyria-002 compositions  
         **Voice Narration:** Male adult voice (en-US-Neural2-A)  
-        **Final Audio:** Synchronized 6-panel experience  
+        **Final Audio:** Separate background music and TTS files  
         
         **Technical Details:**
         - **Image Model:** Imagen 4.0 with typography
@@ -403,7 +403,7 @@ def show_story_info():
         """)
     
     st.markdown("---")
-    st.info("🎯 **Ready to Experience:** Your complete manga story with synchronized audio is ready above!")
+    st.info("🎯 **Ready to Experience:** Your complete manga story with background music and TTS is ready above!")
 
 
 def check_backend_health():

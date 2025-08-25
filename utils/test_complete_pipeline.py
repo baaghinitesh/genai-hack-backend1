@@ -117,8 +117,8 @@ def simulate_slideshow_experience(story):
             print(f"      💭 Dialogue: {dialogue[:80]}{'...' if len(dialogue) > 80 else ''}")
         
         if story.audio_url:
-            print(f"    🎵 Synchronized Audio: {story.audio_url}")
-            print("    ▶️  Audio would play automatically with panel transitions")
+            print(f"    🎵 Audio URL: {story.audio_url}")
+            print("    ▶️  Separate background music and TTS files available")
         
         print("  ✅ Slideshow simulation complete - all assets present!")
         
@@ -239,7 +239,7 @@ async def run_complete_tests():
         print("  ✅ High-quality image generation (Imagen 4.0)")
         print("  ✅ Personalized voice selection (age/gender)")
         print("  ✅ Background music generation (Lyria-002)")
-        print("  ✅ Synchronized audio-visual experience")
+        print("  ✅ Separate audio files (background music and TTS)")
         print("  ✅ FastAPI endpoints working")
         print("  ✅ Slideshow-ready output")
         print("\n🎬 Start your frontend with: streamlit run frontend/streamlit_app.py")

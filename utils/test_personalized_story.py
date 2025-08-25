@@ -159,7 +159,7 @@ if __name__ == "__main__":
         print("   ✅ Age/gender-appropriate voice selection")
         print("   ✅ Personalized image generation")
         print("   ✅ Background music generation")
-        print("   ✅ Complete audio-visual synchronization")
+        print("   ✅ Separate audio files (background music and TTS)")
         print("\n🎵 Check your Google Cloud Storage bucket for generated assets!")
     else:
         print("\n❌ PERSONALIZED STORY TESTS FAILED")

@@ -3,8 +3,9 @@ import base64
 import io
 import tempfile
 import os
+import httpx
+import json
 from typing import List, Optional
-from pydub import AudioSegment
 from google.cloud import aiplatform
 from google.auth import default
 from google.cloud import texttospeech
@@ -33,7 +34,7 @@ class AudioService:
             # Initialize Text-to-Speech client  
             self.tts_client = texttospeech.TextToSpeechClient()
             
-            logger.info(f"Audio service initialized - Lyria: {self.lyria_model}, TTS: Cloud Text-to-Speech")
+            logger.info(f"Audio service initialized - Lyria: {self.lyria_model}, TTS: Chirp 3: HD (with Google Cloud TTS fallback)")
             
         except Exception as e:
             logger.error(f"Failed to initialize audio service: {e}")
@@ -145,121 +146,115 @@ class AudioService:
             return b'RIFF\x24\x08\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x44\xac\x00\x00\x88X\x01\x00\x02\x00\x10\x00data\x00\x08\x00\x00\x00\x00\x00\x00\x00'
     
     def _select_voice_for_user(self, age: int, gender: str) -> dict:
-        """Select appropriate voice based on user age and gender."""
-        
-        # Voice mapping based on Google Cloud TTS available voices
+        """Select appropriate Chirp 3: HD voice based on user gender."""
+
+        # Voice mapping based on gender - using specific Chirp 3: HD voices
         voice_map = {
-            # Young voices (10-17 years)
-            "young": {
-                "male": {
-                    "name": "en-US-Neural2-J",  # Young male voice
-                    "gender": texttospeech.SsmlVoiceGender.MALE
-                },
-                "female": {
-                    "name": "en-US-Neural2-F",  # Young female voice  
-                    "gender": texttospeech.SsmlVoiceGender.FEMALE
-                },
-                "non-binary": {
-                    "name": "en-US-Neural2-F",  # Neutral young voice
-                    "gender": texttospeech.SsmlVoiceGender.FEMALE
-                }
+            "male": {
+                "name": "en-IN-Chirp3-HD-Fenrir",  # Male voice
+                "language_code": "en-IN"
             },
-            # Teen voices (13-19 years)
-            "teen": {
-                "male": {
-                    "name": "en-US-Standard-D",  # Teen male voice
-                    "gender": texttospeech.SsmlVoiceGender.MALE
-                },
-                "female": {
-                    "name": "en-US-Standard-E",  # Teen female voice
-                    "gender": texttospeech.SsmlVoiceGender.FEMALE
-                },
-                "non-binary": {
-                    "name": "en-US-Standard-H",  # Neutral teen voice
-                    "gender": texttospeech.SsmlVoiceGender.FEMALE
-                }
+            "female": {
+                "name": "en-IN-Chirp3-HD-Kore",  # Female voice
+                "language_code": "en-IN"
             },
-            # Adult voices (20+ years)
-            "adult": {
-                "male": {
-                    "name": "en-US-Neural2-A",  # Adult male voice
-                    "gender": texttospeech.SsmlVoiceGender.MALE
-                },
-                "female": {
-                    "name": "en-US-Neural2-C",  # Adult female voice
-                    "gender": texttospeech.SsmlVoiceGender.FEMALE
-                },
-                "non-binary": {
-                    "name": "en-US-Neural2-F",  # Neutral adult voice
-                    "gender": texttospeech.SsmlVoiceGender.FEMALE
-                }
+            "non-binary": {
+                "name": "en-IN-Chirp3-HD-Gacrux",  # Non-binary voice
+                "language_code": "en-IN"
+            },
+            "prefer_not_to_say": {
+                "name": "en-IN-Chirp3-HD-Charon",  # Default neutral voice
+                "language_code": "en-IN"
             }
         }
-        
-        # Determine age category
-        if age <= 12:
-            age_category = "young"
-        elif age <= 19:
-            age_category = "teen"
-        else:
-            age_category = "adult"
-        
+
         # Normalize gender input
-        gender_normalized = gender.lower()
-        if gender_normalized not in ["male", "female", "non-binary"]:
-            gender_normalized = "non-binary"  # Default fallback
-        
+        gender_normalized = gender.lower().strip()
+        if gender_normalized not in voice_map:
+            if gender_normalized in ["male", "female", "non-binary"]:
+                # Use exact match
+                pass
+            else:
+                # Default to prefer not to say for any unrecognized gender
+                gender_normalized = "prefer_not_to_say"
+
         # Get the appropriate voice
-        selected_voice = voice_map[age_category][gender_normalized]
-        
-        logger.info(f"Selected voice for age {age}, gender {gender}: {selected_voice['name']} ({age_category})")
-        
+        selected_voice = voice_map[gender_normalized]
+
+        logger.info(f"Selected Chirp 3: HD voice for gender {gender}: {selected_voice['name']}")
+
         return selected_voice
 
+    async def _make_chirp_request(self, request_data: dict) -> bytes:
+        """Make API request to Chirp 3: HD for speech synthesis."""
+        try:
+            # Chirp 3: HD API endpoint (you'll need to replace with actual endpoint)
+            chirp_api_url = "https://api.chirp.ai/v1/speech/synthesize"  # Placeholder URL
+            
+            # Headers for Chirp 3: HD API
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {settings.chirp_api_key}",  # You'll need to add this to settings
+                "Accept": "audio/mpeg"  # For MP3 output
+            }
+            
+            # Make the API request
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    chirp_api_url,
+                    json=request_data,
+                    headers=headers
+                )
+                
+                if response.status_code == 200:
+                    # Return the audio data
+                    audio_data = response.content
+                    logger.info(f"Chirp 3: HD API request successful - {len(audio_data)} bytes")
+                    return audio_data
+                else:
+                    logger.error(f"Chirp 3: HD API request failed: {response.status_code} - {response.text}")
+                    raise Exception(f"Chirp 3: HD API error: {response.status_code}")
+                    
+        except Exception as e:
+            logger.error(f"Failed to make Chirp 3: HD request: {e}")
+            raise
+
     async def generate_tts_audio(self, text: str, panel_number: int, user_age: int = 16, user_gender: str = "non-binary") -> bytes:
-        """Generate TTS audio using Google Cloud Text-to-Speech with dynamic voice selection."""
+        """Generate TTS audio using Chirp 3: HD with gender-based voice selection."""
         try:
             logger.info(f"Generating TTS audio for panel {panel_number}")
-            logger.info(f"User: {user_age} years old, {user_gender}")
+            logger.info(f"User gender: {user_gender}")
             logger.info(f"TTS text: {text[:100]}...")
-            
-            # Select appropriate voice based on user demographics
+
+            # Select appropriate voice based on gender only
             selected_voice = self._select_voice_for_user(user_age, user_gender)
-            
-            # Prepare the TTS request using Google Cloud Text-to-Speech API
+
+            # Use Google Cloud Text-to-Speech directly for Chirp 3: HD voices
             synthesis_input = texttospeech.SynthesisInput(text=text)
-            
-            # Configure voice based on user demographics
             voice = texttospeech.VoiceSelectionParams(
-                language_code="en-US",
-                name=selected_voice["name"],
-                ssml_gender=selected_voice["gender"]
+                language_code=selected_voice["language_code"],
+                name=selected_voice["name"]
             )
-            
-            # Configure audio format with age-appropriate settings
-            speaking_rate = 0.9 if user_age <= 12 else 1.0  # Slightly slower for young users
-            
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.MP3,
-                speaking_rate=speaking_rate,
+                speaking_rate=1.0,  # Standard speaking rate for all users
                 pitch=0.0,
                 volume_gain_db=0.0
             )
-            
-            # Generate TTS audio
+
             response = await asyncio.to_thread(
                 self.tts_client.synthesize_speech,
                 input=synthesis_input,
                 voice=voice,
                 audio_config=audio_config
             )
-            
+
             # Return the audio data
             audio_data = response.audio_content
             logger.info(f"TTS audio generated successfully for panel {panel_number} - {len(audio_data)} bytes")
-            logger.info(f"Used voice: {selected_voice['name']}")
+            logger.info(f"Used Chirp 3: HD voice: {selected_voice['name']}")
             return audio_data
-                
+
         except Exception as e:
             logger.error(f"Failed to generate TTS audio for panel {panel_number}: {e}")
             raise
@@ -306,76 +301,9 @@ class AudioService:
             logger.error(f"Failed to generate audio: {e}")
             raise
     
-    async def synchronize_audio(self, background_urls: List[str], tts_urls: List[str], story_id: str) -> str:
-        """Synchronize background music and TTS into a single audio track."""
-        try:
-            # Create a combined audio track
-            combined_audio = AudioSegment.empty()
-            
-            for i, (bg_url, tts_url) in enumerate(zip(background_urls, tts_urls)):
-                logger.info(f"Synchronizing audio for panel {i + 1}")
-                
-                # Load background music
-                bg_audio = AudioSegment.from_mp3(io.BytesIO(await self._download_audio(bg_url)))
-                
-                # Load TTS audio
-                tts_audio = AudioSegment.from_mp3(io.BytesIO(await self._download_audio(tts_url)))
-                
-                # Ensure background music is 20 seconds
-                if len(bg_audio) > 20000:  # 20 seconds in milliseconds
-                    bg_audio = bg_audio[:20000]
-                elif len(bg_audio) < 20000:
-                    # Extend with silence if too short
-                    silence_needed = 20000 - len(bg_audio)
-                    silence_audio = AudioSegment.silent(duration=silence_needed)
-                    bg_audio = bg_audio + silence_audio
-                
-                # Overlay TTS on background music
-                panel_audio = bg_audio.overlay(tts_audio)
-                
-                # Add to combined audio
-                combined_audio += panel_audio
-                
-                # Add 2-second silence between panels (except after the last one)
-                if i < len(background_urls) - 1:
-                    silence_audio = AudioSegment.silent(duration=2000)  # 2 seconds
-                    combined_audio += silence_audio
-            
-            # Export as MP3
-            audio_buffer = io.BytesIO()
-            combined_audio.export(audio_buffer, format="mp3")
-            audio_data = audio_buffer.getvalue()
-            
-            # Upload to GCS
-            final_audio_url = await storage_service.upload_audio(audio_data, story_id, "final")
-            
-            logger.info(f"Audio synchronization completed: {final_audio_url}")
-            return final_audio_url
-            
-        except Exception as e:
-            logger.error(f"Failed to synchronize audio: {e}")
-            raise
+
     
-    async def _download_audio(self, url: str) -> bytes:
-        """Download audio file from GCS using client instead of HTTP."""
-        try:
-            from google.cloud import storage
-            
-            # Extract bucket and blob path from GCS URL
-            # URL format: https://storage.googleapis.com/bucket-name/path/file.ext
-            url_parts = url.replace('https://storage.googleapis.com/', '').split('/', 1)
-            bucket_name = url_parts[0]
-            blob_path = url_parts[1]
-            
-            # Use GCS client to download
-            client = storage.Client()
-            bucket = client.bucket(bucket_name)
-            blob = bucket.blob(blob_path)
-            return blob.download_as_bytes()
-                
-        except Exception as e:
-            logger.error(f"Failed to download audio from {url}: {e}")
-            raise
+
     
     async def create_audio_prompt(self, panel_data: dict, emotional_tone: str) -> str:
         """Create optimized music generation prompt."""

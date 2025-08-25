@@ -222,17 +222,12 @@ class StoryService:
                 image_task, audio_task
             )
             
-            # Step 4: Synchronize audio
-            final_audio_url = await audio_service.synchronize_audio(
-                background_urls, tts_urls, story_id
-            )
-            
-            # Step 5: Create final story object
+            # Step 4: Create final story object (no audio synchronization)
             story = GeneratedStory(
                 story_id=story_id,
                 panels=panels,
                 image_urls=image_urls,
-                audio_url=final_audio_url,
+                audio_url="",  # No synchronized audio - separate background and TTS URLs available
                 status="completed"
             )
             

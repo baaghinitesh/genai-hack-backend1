@@ -172,7 +172,7 @@ def main():
     if audio_data:
         st.audio(audio_data, format="audio/mp3")
         st.success("✅ Audio loaded successfully from GCS")
-        st.info("▶️ **Play the audio above and navigate through panels below for the synchronized manga experience!**")
+        st.info("▶️ **Play the audio above and navigate through panels below for the complete manga experience!**")
     else:
         st.error(f"❌ Could not load audio from GCS path: {audio_blob_path}")
     

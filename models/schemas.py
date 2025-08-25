@@ -55,7 +55,7 @@ class GeneratedStory(BaseModel):
     story_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     panels: List[PanelData]
     image_urls: List[str] = Field(default_factory=list)  # GCS URLs
-    audio_url: str = ""  # Final synchronized audio
+    audio_url: str = ""  # Audio URL (separate background music and TTS files available)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     status: str = "pending"
 

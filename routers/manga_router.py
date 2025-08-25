@@ -29,8 +29,8 @@ async def generate_manga_story(request: StoryGenerationRequest) -> StoryGenerati
     This endpoint orchestrates the complete pipeline:
     1. Story planning with Mangaka-Sensei
     2. Image generation with Imagen 4.0
-    3. Audio generation with personalized voices
-    4. Final synchronization and delivery
+    3. Audio generation with personalized voices (background music and TTS)
+    4. Final delivery with separate audio files
     """
     try:
         logger.info(f"🎬 Manga generation request received for: {request.inputs.nickname}")
@@ -179,6 +179,6 @@ async def root():
             "Imagen 4.0 image generation",
             "Personalized voice selection (age/gender)",
             "Lyria-002 background music",
-            "Synchronized audio-visual experience"
+            "Separate background music and TTS audio files"
         ]
     }

@@ -10,7 +10,7 @@ from loguru import logger
 
 
 async def test_complete_audio_pipeline():
-    """Test the complete audio pipeline: TTS + Background Music + Synchronization."""
+    """Test the complete audio pipeline: TTS + Background Music (no synchronization)."""
     try:
         logger.info("Testing complete audio pipeline...")
         
@@ -51,17 +51,9 @@ async def test_complete_audio_pipeline():
                 logger.info(f"     🎵 Music: {bg_url}")
                 logger.info(f"     🗣️  TTS: {tts_url}")
             
-            # Test audio synchronization
-            logger.info("Testing audio synchronization...")
-            final_audio_url = await audio_service.synchronize_audio(background_urls, tts_urls, story_id)
-            
-            if final_audio_url:
-                logger.success(f"✅ Audio synchronization successful!")
-                logger.info(f"   🎼 Final audio: {final_audio_url}")
-                return True
-            else:
-                logger.error("❌ Audio synchronization failed")
-                return False
+            logger.success(f"✅ Audio generation completed successfully!")
+            logger.info(f"   🎵 Background music and TTS generated separately")
+            return True
         else:
             logger.error("❌ Complete audio pipeline failed")
             return False
@@ -151,8 +143,8 @@ if __name__ == "__main__":
         print("🚀 Your complete audio pipeline is working:")
         print("   ✅ Lyria-002 background music generation")
         print("   ✅ Google Cloud Text-to-Speech")
-        print("   ✅ Audio synchronization with FFmpeg")
         print("   ✅ Google Cloud Storage upload")
+        print("   ✅ Separate audio files (no synchronization)")
     else:
         print("\n⚠️  SOME TESTS FAILED")
         print("🔍 Check logs for details. May need prompt engineering.")

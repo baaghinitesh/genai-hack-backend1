@@ -14,6 +14,7 @@ class Settings:
         self.lyria_model = "lyria-002"
         self.chirp_model = "chirp-3hd"
         self.chirp_voice_id = "en-US-Chirp3-HD-Charon"
+        self.chirp_api_key = "your-chirp-api-key-here"  # Replace with actual Chirp API key
         
         # Hardcoded API Settings
         self.api_host = "0.0.0.0"

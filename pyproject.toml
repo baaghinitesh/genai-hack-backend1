@@ -20,7 +20,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "httpx>=0.25.0",
     "pillow>=10.1.0",
-    "pydub>=0.25.1",
+
     "asyncio-mqtt>=0.16.0",
     "loguru>=0.7.2",
     "pydantic-settings>=2.1.0",

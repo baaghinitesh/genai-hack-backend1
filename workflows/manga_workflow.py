@@ -90,7 +90,7 @@ async def image_generation_loop_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def audio_generation_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate background music for all panels."""
+    """Generate background music and TTS for all panels."""
     try:
         logger.info(f"Starting audio generation for {state['story_id']}")
         
@@ -113,42 +113,17 @@ async def audio_generation_node(state: Dict[str, Any]) -> Dict[str, Any]:
         return state
 
 
-async def audio_synchronization_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Synchronize background music and TTS into final audio."""
-    try:
-        logger.info(f"Starting audio synchronization for {state['story_id']}")
-        
-        if not state.get("background_urls") or not state.get("tts_urls"):
-            raise Exception("Audio files not available for synchronization")
-        
-        # Synchronize audio
-        final_audio_url = await audio_service.synchronize_audio(
-            state["background_urls"], state["tts_urls"], state["story_id"]
-        )
-        state["final_audio_url"] = final_audio_url
-        state["status"] = "audio_synchronized"
-        
-        logger.info(f"Audio synchronization completed for {state['story_id']}")
-        return state
-        
-    except Exception as e:
-        logger.error(f"Audio synchronization failed for {state.get('story_id')}: {e}")
-        state["error"] = f"Audio synchronization failed: {str(e)}"
-        state["status"] = "error"
-        return state
-
-
 async def final_assembly_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Assemble the final story with all assets."""
     try:
         logger.info(f"Starting final assembly for {state['story_id']}")
         
-        # Create the final story object
+        # Create the final story object with separate audio URLs
         story = GeneratedStory(
             story_id=state["story_id"],
             panels=state["panels"],
             image_urls=state["image_urls"],
-            audio_url=state["final_audio_url"],
+            audio_url="",  # No synchronized audio - separate background and TTS URLs available
             status="completed"
         )
         
@@ -174,7 +149,6 @@ def create_manga_workflow() -> StateGraph:
     workflow.add_node("consistency_validator", story_consistency_validator_node)
     workflow.add_node("image_generation", image_generation_loop_node)
     workflow.add_node("audio_generation", audio_generation_node)
-    workflow.add_node("audio_synchronization", audio_synchronization_node)
     workflow.add_node("final_assembly", final_assembly_node)
     
     # Define the workflow flow
@@ -210,15 +184,6 @@ def create_manga_workflow() -> StateGraph:
 
     workflow.add_conditional_edges(
         "audio_generation",
-        lambda s: "end" if s.get("status") == "error" else "audio_synchronization",
-        {
-            "end": END,
-            "audio_synchronization": "audio_synchronization",
-        },
-    )
-
-    workflow.add_conditional_edges(
-        "audio_synchronization",
         lambda s: "end" if s.get("status") == "error" else "final_assembly",
         {
             "end": END,
@@ -249,7 +214,6 @@ class MangaWorkflowManager:
                 "image_urls": [],
                 "background_urls": [],
                 "tts_urls": [],
-                "final_audio_url": "",
                 "status": "pending",
                 "error": "",
                 "created_at": asyncio.get_event_loop().time(),
@@ -268,7 +232,7 @@ class MangaWorkflowManager:
                     story_id=result.get("story_id", ""),
                     panels=result.get("panels", []),
                     image_urls=result.get("image_urls", []),
-                    audio_url=result.get("final_audio_url", ""),
+                    audio_url="",  # No synchronized audio - separate background and TTS URLs available
                     status="completed"
                 )
                 

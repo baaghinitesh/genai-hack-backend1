@@ -95,14 +95,13 @@ async def check_story_assets(story_id: str):
         if missing_tts:
             logger.warning(f"❌ Missing TTS: {missing_tts}")
             
-        # Return asset URLs for orchestration
+        # Return asset URLs (no synchronization)
         base_url = "https://storage.googleapis.com/calmira-backend/"
         asset_data = {
             "story_id": story_id,
             "image_urls": [f"{base_url}{img}" for img in images],
             "music_urls": [f"{base_url}{mus}" for mus in music],
             "tts_urls": [f"{base_url}{voice}" for voice in tts],
-            "final_audio_urls": [f"{base_url}{audio}" for audio in final_audio],
             "missing": {
                 "images": missing_images,
                 "music": missing_music,
@@ -116,35 +115,7 @@ async def check_story_assets(story_id: str):
         logger.error(f"Failed to check story assets: {e}")
         raise
 
-async def test_audio_synchronization(story_id: str):
-    """Test audio synchronization with existing assets."""
-    try:
-        logger.info(f"🎵 Testing audio synchronization for {story_id}")
-        
-        # Check existing assets
-        assets = await check_story_assets(story_id)
-        
-        if len(assets["music_urls"]) == 0 or len(assets["tts_urls"]) == 0:
-            logger.error("❌ Missing music or TTS files - cannot synchronize")
-            return None
-            
-        # Sort URLs to ensure correct order
-        music_urls = sorted(assets["music_urls"])
-        tts_urls = sorted(assets["tts_urls"])
-        
-        logger.info(f"🎵 Found {len(music_urls)} music files and {len(tts_urls)} TTS files")
-        
-        # Test synchronization
-        final_audio_url = await audio_service.synchronize_audio(
-            music_urls, tts_urls, story_id
-        )
-        
-        logger.info(f"✅ Audio synchronization completed: {final_audio_url}")
-        return final_audio_url
-        
-    except Exception as e:
-        logger.error(f"Failed to synchronize audio: {e}")
-        raise
+
 
 async def main():
     """Main test function."""
@@ -160,15 +131,15 @@ async def main():
             # Check assets
             assets = await check_story_assets(story_id)
             
-            # If we have enough assets, test synchronization
+            # Log asset status
             if len(assets["music_urls"]) >= 3 and len(assets["tts_urls"]) >= 3:
-                logger.info(f"📦 Sufficient assets found - testing synchronization...")
-                final_audio = await test_audio_synchronization(story_id)
-                if final_audio:
-                    logger.info(f"🎉 Story {story_id} orchestration completed successfully!")
-                    return story_id, assets, final_audio
+                logger.info(f"📦 Sufficient assets found for {story_id}")
+                logger.info(f"🎵 Music files: {len(assets['music_urls'])}")
+                logger.info(f"🗣️ TTS files: {len(assets['tts_urls'])}")
+                logger.info(f"🖼️ Image files: {len(assets['image_urls'])}")
+                return story_id, assets, None
             else:
-                logger.warning(f"⚠️ Insufficient assets for {story_id} - skipping synchronization")
+                logger.warning(f"⚠️ Insufficient assets for {story_id}")
         
         logger.warning("❌ No stories with sufficient assets found")
         return None, None, None
