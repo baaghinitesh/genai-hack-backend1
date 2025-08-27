@@ -12,10 +12,12 @@ from models.schemas import (
     HealthResponse
 )
 from services.story_service import story_service
+from services.sequential_story_service import sequential_story_service
 from services.image_service import image_service
 from services.audio_service import audio_service
 from services.storage_service import storage_service
 from utils.helpers import create_timestamp, log_api_call
+from utils.socket_utils import emit_generation_progress
 
 # Create router instance
 router = APIRouter()
@@ -75,6 +77,78 @@ async def generate_manga_story(request: StoryGenerationRequest) -> StoryGenerati
         )
 
 
+@router.post("/generate-manga-streaming", response_model=StoryGenerationResponse)
+async def generate_manga_story_streaming(request: StoryGenerationRequest) -> StoryGenerationResponse:
+    """
+    Generate a 6-panel manga story using streaming panel-by-panel processing.
+
+    This endpoint uses streaming LLM generation and immediately processes each panel
+    as it becomes available, providing real-time progress updates via Socket.IO.
+
+    The frontend should:
+    1. Connect to Socket.IO endpoint
+    2. Call this endpoint to start generation
+    3. Listen for real-time progress events
+
+    Args:
+        request: Story generation request with user inputs
+
+    Returns:
+        Story generation response (panels will be streamed via Socket.IO)
+    """
+    try:
+        logger.info(f"🎬 Streaming manga generation request received for: {request.inputs.nickname}")
+        log_api_call("/generate-manga-streaming", request.dict())
+
+        # Validate inputs
+        if not request.inputs.nickname or not request.inputs.mangaTitle:
+            raise HTTPException(
+                status_code=400,
+                detail="Nickname and manga title are required"
+            )
+
+        # Create progress emitter function that captures the request context
+        async def emit_progress(event_type: str, data: dict):
+            story_id = data.get('story_id', '')
+            return await emit_generation_progress(story_id, event_type, data)
+
+        # Generate the complete story using sequential workflow for better reliability
+        story_data = await sequential_story_service.generate_sequential_story(
+            inputs=request.inputs,
+            emit_progress=emit_progress,
+            user_age=request.inputs.age,
+            user_gender=request.inputs.gender
+        )
+
+        if not story_data or story_data.status != "completed":
+            raise HTTPException(
+                status_code=500,
+                detail="Sequential story generation failed or incomplete"
+            )
+
+        # Create success response
+        response = StoryGenerationResponse(
+            story_id=story_data.story_id,
+            status="completed",
+            message=f"Manga story '{request.inputs.mangaTitle}' generated successfully with sequential processing!",
+            story=story_data.story  # Include the story data
+        )
+
+        logger.success(f"✅ Sequential manga story generated: {story_data.story_id}")
+        log_api_call("/generate-manga-streaming", request.dict(), response.dict())
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Sequential manga generation failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Sequential story generation failed: {str(e)}"
+        )
+
+
 @router.get("/story/{story_id}/status")
 async def get_story_status(story_id: str) -> Dict[str, Any]:
     """Get the status of a story generation."""
@@ -123,12 +197,12 @@ async def health_check() -> HealthResponse:
         except Exception as e:
             services_status["image_service"] = f"error - {str(e)}"
         
-        # Check Audio service (TTS + Lyria)
+        # Check Audio service (TTS only, Lyria removed)
         try:
-            if audio_service.tts_client is not None and audio_service.prediction_client is not None:
+            if audio_service.tts_client is not None:
                 services_status["audio_service"] = "healthy"
             else:
-                services_status["audio_service"] = "unhealthy - Audio clients not initialized"
+                services_status["audio_service"] = "unhealthy - TTS client not initialized"
         except Exception as e:
             services_status["audio_service"] = f"error - {str(e)}"
         
@@ -171,6 +245,7 @@ async def root():
         "description": "Generate personalized 6-panel manga stories for youth mental wellness",
         "endpoints": {
             "generate_manga": "/generate-manga",
+            "generate_manga_streaming": "/generate-manga-streaming",
             "health": "/health",
             "story_status": "/story/{story_id}/status"
         },
@@ -179,6 +254,9 @@ async def root():
             "Imagen 4.0 image generation",
             "Personalized voice selection (age/gender)",
             "Lyria-002 background music",
-            "Separate background music and TTS audio files"
+            "Separate background music and TTS audio files",
+            "Streaming panel-by-panel generation",
+            "Real-time progress updates via Socket.IO",
+            "Immediate asset generation per panel"
         ]
     }

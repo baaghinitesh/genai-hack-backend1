@@ -2,19 +2,18 @@ class Settings:
     def __init__(self):
         # Hardcoded Vertex AI Configuration - SDK uses GOOGLE_APPLICATION_CREDENTIALS env var automatically
         self.vertex_ai_project_id = "n8n-local-463912"
-        self.model_name = "gemini-2.5-flash"
+        self.model_name = "gemini-2.5-pro"
         
         # Hardcoded Storage Settings
         self.gcs_bucket_name = "calmira-backend"
         
-        # Hardcoded Image Generation Settings
-        self.imagen_seed = 42
+        # Hardcoded Image Generation Settings  
+        self.imagen_seed = 42  # Default seed (will be overridden per story)
         
         # Hardcoded Audio Generation Settings
-        self.lyria_model = "lyria-002"
+        self.lyria_model = "lyria-002"  # Uses service account credentials automatically
         self.chirp_model = "chirp-3hd"
-        self.chirp_voice_id = "en-US-Chirp3-HD-Charon"
-        self.chirp_api_key = "your-chirp-api-key-here"  # Replace with actual Chirp API key
+        self.chirp_voice_id = "en-US-Chirp3-HD-Charon" # Replace with actual Chirp API key
         
         # Hardcoded API Settings
         self.api_host = "0.0.0.0"
@@ -22,7 +21,7 @@ class Settings:
         self.debug = False
         
         # Hardcoded CORS Settings
-        self.cors_origins = "http://localhost:8501,http://127.0.0.1:8501"
+        self.cors_origins = "http://localhost:8501,http://127.0.0.1:8501,http://localhost:8080,http://127.0.0.1:8080"
         
         # Workflow Settings
         self.max_retries = 3

@@ -2,7 +2,7 @@ import os
 import asyncio
 from typing import Optional, List
 from google.cloud import storage
-from google.auth import default
+from google.oauth2 import service_account
 from loguru import logger
 from config.settings import settings
 
@@ -17,8 +17,22 @@ class StorageService:
     def _initialize_client(self):
         """Initialize Google Cloud Storage client with hardcoded configuration."""
         try:
-            # SDK uses GOOGLE_APPLICATION_CREDENTIALS environment variable automatically
-            self.client = storage.Client()
+            # Prefer explicit service account credentials for signing URLs
+            credentials = None
+            # Environment variable takes precedence
+            sa_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+            # Fallback to local servicekey.json if present
+            if not sa_path or not os.path.isfile(sa_path):
+                local_sa = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "servicekey.json"))
+                if os.path.isfile(local_sa):
+                    sa_path = local_sa
+
+            if sa_path and os.path.isfile(sa_path):
+                credentials = service_account.Credentials.from_service_account_file(sa_path)
+                self.client = storage.Client(credentials=credentials, project=credentials.project_id)
+            else:
+                # Fall back to ADC; note: user credentials cannot sign URLs
+                self.client = storage.Client()
             self.bucket = self.client.bucket(self.bucket_name)
             
             # Ensure bucket exists
@@ -54,7 +68,7 @@ class StorageService:
             raise
     
     async def upload_bytes(self, data: bytes, destination_blob_name: str, content_type: str = "application/octet-stream") -> str:
-        """Upload bytes data to GCS and return the public URL."""
+        """Upload bytes data to GCS and return a signed URL for private access."""
         try:
             blob = self.bucket.blob(destination_blob_name)
             blob.content_type = content_type
@@ -62,13 +76,9 @@ class StorageService:
             # Upload the bytes
             blob.upload_from_string(data, content_type=content_type)
             
-            # With uniform bucket-level access, we don't need to make individual blobs public
-            # The bucket-level permissions handle access control
-            
-            # Return the public URL
-            url = f"https://storage.googleapis.com/{self.bucket_name}/{destination_blob_name}"
-            logger.info(f"Bytes uploaded successfully: {url}")
-            
+            # Generate short-lived signed URL so frontend can access private assets
+            url = blob.generate_signed_url(version="v4", expiration=60 * 60, method="GET")
+            logger.info(f"Bytes uploaded successfully (signed): {destination_blob_name}")
             return url
             
         except Exception as e:

@@ -16,13 +16,10 @@ async def test_voice_selection_for_different_users():
         
         # Test different user profiles
         test_users = [
-            {"age": 10, "gender": "male", "name": "Young Boy"},
-            {"age": 10, "gender": "female", "name": "Young Girl"},
-            {"age": 16, "gender": "male", "name": "Teen Boy"},
-            {"age": 16, "gender": "female", "name": "Teen Girl"},
-            {"age": 16, "gender": "non-binary", "name": "Teen Non-binary"},
-            {"age": 25, "gender": "male", "name": "Adult Male"},
-            {"age": 25, "gender": "female", "name": "Adult Female"},
+            {"age": 16, "gender": "male", "name": "Male User"},
+            {"age": 16, "gender": "female", "name": "Female User"},
+            {"age": 16, "gender": "non-binary", "name": "Non-binary User"},
+            {"age": 16, "gender": "prefer_not_to_say", "name": "Prefer Not to Say"},
         ]
         
         test_text = "Welcome to your personalized manga story. This is how your voice sounds for narration."
@@ -71,16 +68,13 @@ async def test_voice_mapping_logic():
     try:
         logger.info("Testing voice mapping logic...")
         
-        # Test cases for voice selection
+        # Test cases for gender-based voice selection
         test_cases = [
-            (8, "male"),     # Should be young male
-            (12, "female"),  # Should be young female
-            (15, "male"),    # Should be teen male
-            (18, "female"),  # Should be teen female
-            (17, "non-binary"), # Should be teen non-binary
-            (25, "male"),    # Should be adult male
-            (30, "female"),  # Should be adult female
-            (22, "other"),   # Should default to non-binary adult
+            (16, "male"),         # Should use Fenrir voice
+            (16, "female"),       # Should use Kore voice
+            (16, "non-binary"),   # Should use Gacrux voice
+            (16, "prefer_not_to_say"), # Should use Charon voice
+            (16, "other"),        # Should default to prefer_not_to_say (Charon)
         ]
         
         for age, gender in test_cases:
@@ -119,13 +113,14 @@ if __name__ == "__main__":
     if result:
         print("\n✅ Voice Selection Tests PASSED!")
         print("\n🎯 Voice Selection System Features:")
-        print("   ✅ Age-appropriate voices (Young/Teen/Adult)")
         print("   ✅ Gender-specific voice selection")
-        print("   ✅ Non-binary inclusive options")
-        print("   ✅ Slower speech rate for young users")
-        print("   ✅ High-quality Neural2 voices for best quality")
+        print("   ✅ Male: en-IN-Chirp3-HD-Fenrir")
+        print("   ✅ Female: en-IN-Chirp3-HD-Kore")
+        print("   ✅ Non-binary: en-IN-Chirp3-HD-Gacrux")
+        print("   ✅ Prefer not to say: en-IN-Chirp3-HD-Charon")
+        print("   ✅ High-quality Chirp 3 HD voices")
         print("\n🎵 Check generated voice samples:")
-        print("   voice_test_[age]_[gender].mp3")
+        print("   voice_test_16_[gender].mp3")
     else:
         print("\n❌ Voice Selection Tests FAILED")
         print("🔍 Check logs for details")

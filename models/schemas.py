@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import List, Literal, Dict, Any
+from typing import List, Literal, Dict, Any, Optional
 from pydantic import BaseModel, Field
 import uuid
 
 
 class StoryInputs(BaseModel):
     mood: Literal['happy', 'stressed', 'neutral', 'frustrated', 'sad']
-    vibe: Literal['calm', 'adventure', 'musical', 'motivational']
+    vibe: Literal['calm', 'adventure', 'musical', 'motivational', 'slice-of-life', 'shonen', 'isekai', 'fantasy']
     archetype: Literal['mentor', 'hero', 'companion', 'comedian']
     dream: str = Field(..., min_length=1, max_length=500)
     mangaTitle: str = Field(..., min_length=1, max_length=100)
@@ -14,6 +14,11 @@ class StoryInputs(BaseModel):
     hobby: str = Field(..., min_length=1, max_length=100)
     age: int = Field(..., ge=10, le=35, description="User age for voice selection")
     gender: Literal['male', 'female', 'non-binary', 'prefer-not-to-say']
+    
+    # Additional fields for enhanced story generation
+    supportSystem: str = Field(default="", description="Support system type")
+    coreValue: str = Field(default="", description="Core value/principle")
+    innerDemon: str = Field(default="", description="Inner struggle/demon")
 
 
 class CharacterSheet(BaseModel):
@@ -68,7 +73,7 @@ class StoryGenerationResponse(BaseModel):
     story_id: str
     status: str
     message: str
-    story: GeneratedStory = None
+    story: Optional[GeneratedStory] = None
 
 
 class HealthResponse(BaseModel):

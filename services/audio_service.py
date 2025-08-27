@@ -11,6 +11,7 @@ from google.auth import default
 from google.cloud import texttospeech
 from loguru import logger
 from config.settings import settings
+from utils.retry_helpers import exponential_backoff_async
 from services.storage_service import storage_service
 
 
@@ -18,86 +19,33 @@ class AudioService:
     def __init__(self):
         # Hardcoded configuration - SDK uses GOOGLE_APPLICATION_CREDENTIALS automatically
         self.project_id = settings.vertex_ai_project_id
-        self.lyria_model = settings.lyria_model
         self.location = "us-central1"
-        self.prediction_client = None
         self.tts_client = None
         self._initialize_clients()
     
     def _initialize_clients(self):
-        """Initialize Lyria (Vertex AI Prediction) and TTS clients."""
+        """Initialize TTS client only (Lyria removed)."""
         try:
-            # Initialize Vertex AI for Lyria using PredictionServiceClient (correct approach)
-            aiplatform.init(project=self.project_id, location=self.location)
-            self.prediction_client = aiplatform.gapic.PredictionServiceClient()
-            
-            # Initialize Text-to-Speech client  
+            # Initialize Text-to-Speech client only
             self.tts_client = texttospeech.TextToSpeechClient()
             
-            logger.info(f"Audio service initialized - Lyria: {self.lyria_model}, TTS: Chirp 3: HD (with Google Cloud TTS fallback)")
+            logger.info(f"Audio service initialized - TTS: Chirp 3: HD with Google Cloud TTS")
             
         except Exception as e:
             logger.error(f"Failed to initialize audio service: {e}")
             raise
     
     async def generate_background_music(self, prompt: str, panel_number: int) -> bytes:
-        """Generate background music using Lyria-002 REST API."""
+        """Generate background music - removed Lyria, returns static placeholder."""
         try:
-            logger.info(f"Generating background music for panel {panel_number}")
-            logger.info(f"Music prompt: {prompt[:100]}...")
+            logger.info(f"Using static background music for panel {panel_number}")
+            logger.info(f"Music prompt (not used): {prompt[:100]}...")
             
-            # Enhanced prompt based on Lyria best practices:
-            # Specify genre, mood, instrumentation, tempo
-            enhanced_prompt = f"Instrumental ambient music, {prompt}, gentle emotional soundtrack, soft strings, peaceful mood, medium tempo"
-            
-            # Prepare the Lyria API request based on documentation
-            endpoint = f"projects/{self.project_id}/locations/{self.location}/publishers/google/models/{self.lyria_model}"
-            
-            # Create instance following the documented format
-            instance = {
-                "prompt": enhanced_prompt,
-                "negative_prompt": "vocals, singing, drums, loud instruments",  # Exclude vocals, keep it ambient
-                "seed": settings.imagen_seed  # Use same seed for consistency across panels
-            }
-            
-            logger.info(f"Calling Lyria API with enhanced prompt")
-            
-            # Make the prediction using the PredictionServiceClient
-            response = await asyncio.to_thread(
-                self.prediction_client.predict,
-                endpoint=endpoint,
-                instances=[instance],
-                parameters={}
-            )
-            
-            logger.info(f"Lyria response received: {type(response)}")
-            
-            # Extract the audio data from response
-            if response.predictions and len(response.predictions) > 0:
-                prediction = response.predictions[0]
-                logger.info(f"Prediction type: {type(prediction)}")
-                logger.info(f"Prediction keys: {prediction.keys() if hasattr(prediction, 'keys') else 'No keys'}")
-                
-                # The response should contain base64 encoded audio (WAV format, 48kHz, 30s)
-                if 'bytesBase64Encoded' in prediction:
-                    audio_data = base64.b64decode(prediction['bytesBase64Encoded'])
-                    logger.info(f"Background music generated successfully for panel {panel_number} - {len(audio_data)} bytes (WAV)")
-                    return audio_data
-                elif 'bytes_base64_encoded' in prediction:
-                    audio_data = base64.b64decode(prediction['bytes_base64_encoded'])
-                    logger.info(f"Background music generated successfully for panel {panel_number} - {len(audio_data)} bytes (WAV)")
-                    return audio_data
-                else:
-                    logger.error(f"No audio data found in prediction. Available keys: {list(prediction.keys()) if hasattr(prediction, 'keys') else 'N/A'}")
-                    raise Exception("No audio data in Lyria response")
-            else:
-                logger.error("No predictions in Lyria response")
-                raise Exception("No predictions in Lyria response")
+            # Return static placeholder audio since Lyria is removed
+            return self._generate_placeholder_audio()
                 
         except Exception as e:
             logger.error(f"Failed to generate background music for panel {panel_number}: {e}")
-            # For hackathon: fall back to a simple placeholder
-            logger.warning("Falling back to placeholder audio for hackathon")
             return self._generate_placeholder_audio()
     
     def _generate_placeholder_audio(self) -> bytes:
@@ -242,11 +190,15 @@ class AudioService:
                 volume_gain_db=0.0
             )
 
-            response = await asyncio.to_thread(
+            response = await exponential_backoff_async(
+                asyncio.to_thread,
                 self.tts_client.synthesize_speech,
                 input=synthesis_input,
                 voice=voice,
-                audio_config=audio_config
+                audio_config=audio_config,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=20.0
             )
 
             # Return the audio data
@@ -270,10 +222,10 @@ class AudioService:
                 
                 # Generate background music and TTS in parallel for this panel
                 music_prompt = panel.get('music_prompt', f"Emotional ambient music for panel {panel_num}")
-                dialogue_text = panel.get('dialogue_text', f"Panel {panel_num} narration")
-                
+                tts_text = panel.get('tts_text', panel.get('dialogue_text', f"Panel {panel_num} narration"))
+
                 music_task = self.generate_background_music(music_prompt, panel_num)
-                tts_task = self.generate_tts_audio(dialogue_text, panel_num, user_age, user_gender)
+                tts_task = self.generate_tts_audio(tts_text, panel_num, user_age, user_gender)
                 
                 background_data, tts_data = await asyncio.gather(music_task, tts_task)
                 

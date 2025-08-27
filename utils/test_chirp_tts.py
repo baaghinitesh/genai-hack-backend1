@@ -23,11 +23,11 @@ async def test_chirp_tts_simple():
         tts_client = texttospeech.TextToSpeechClient()
 
         # Simple test case - just one test with the exact voice specified
-        test_text = "Hello, this is a test of Chirp 3 HD voice using Google Cloud Text-to-Speech."
+        test_text = "THIS IS A TEXT PASS IT BY SAYING HELLO, AND SAY I LOVE THIS WORLD(shout)"
 
         logger.info("Simple Chirp 3: HD Test")
         logger.info(f"Text: {test_text}")
-        logger.info("Voice: en-IN-Chirp3-HD-Charon")
+        logger.info("Voice: en-IN-Chirp3-HD-Fenrir")
 
         # Create synthesis input
         synthesis_input = texttospeech.SynthesisInput(text=test_text)
@@ -35,7 +35,7 @@ async def test_chirp_tts_simple():
         # Configure voice - exactly as specified
         voice = texttospeech.VoiceSelectionParams(
             language_code="en-IN",
-            name="en-IN-Chirp3-HD-Charon",
+            name="en-IN-Chirp3-HD-Fenrir",
         )
 
         # Configure audio
@@ -97,7 +97,7 @@ if __name__ == "__main__":
         print("\n🎉 CHIRP 3: HD TEST PASSED!")
         print("🚀 Your Chirp 3: HD integration is working:")
         print("   ✅ Using Google Cloud Text-to-Speech")
-        print("   ✅ Voice: en-US-Chirp3-HD-Charon")
+        print("   ✅ Voice: en-IN-Chirp3-HD-Fenrir")
         print("   ✅ No fallback needed")
         print("\n🎵 Check the generated MP3 file for audio quality!")
     else:
