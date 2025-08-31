@@ -7,6 +7,8 @@
 ### **Start Backend (FastAPI)**
 
 ```bash
+.\.venv\Scripts\Activate.ps1
+python start_server.py 
 python main.py
 ```
 
